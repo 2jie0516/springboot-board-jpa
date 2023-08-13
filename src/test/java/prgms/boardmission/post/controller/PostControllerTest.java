@@ -7,17 +7,31 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.restdocs.AutoConfigureRestDocs;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.restdocs.payload.JsonFieldType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+import prgms.boardmission.domain.Post;
 import prgms.boardmission.member.dto.MemberDto;
 import prgms.boardmission.post.dto.PostDto;
 import prgms.boardmission.post.dto.PostUpdateDto;
 import prgms.boardmission.post.service.PostService;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doReturn;
 import static org.springframework.mock.http.server.reactive.MockServerHttpRequest.patch;
 import static org.springframework.mock.http.server.reactive.MockServerHttpRequest.post;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
@@ -30,20 +44,23 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @AutoConfigureRestDocs
 @AutoConfigureMockMvc
-@SpringBootTest
+@WebMvcTest(PostController.class)
 class PostControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
+
     @Autowired
     private ObjectMapper objectMapper;
-    @Autowired
-    private PostService postService;
-    private MemberDto memberDto;
-    private PostDto.Request postDto;
 
-    @BeforeEach
-    void setUp() {
+    @MockBean
+    private PostService postService;
+
+    private MemberDto memberDto;
+
+    @Test
+    void save() throws Exception {
+        //Given
         String name = "sehan";
         int age = 20;
         String hobby = "hobby";
@@ -53,13 +70,12 @@ class PostControllerTest {
         String title = "title";
         String content = "content";
 
-        postDto = new PostDto.Request(title, content, memberDto);
+        PostDto.Request postDto = new PostDto.Request(title, content, memberDto);
 
-        postService.save(postDto);
-    }
+        doReturn(1L).when(postService)
+                .save(postDto);
 
-    @Test
-    void save() throws Exception {
+        //Then
         mockMvc.perform(MockMvcRequestBuilders.post("/posts")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(postDto)))
@@ -79,10 +95,25 @@ class PostControllerTest {
                                 fieldWithPath("data").type(JsonFieldType.NUMBER).description("데이터")
                         )
                 ));
+
+
     }
 
     @Test
     void findAll() throws Exception {
+        //Given
+        PageRequest pageable = PageRequest.of(0, 10);
+        PostDto.Response returnPost = new PostDto.Response(1L, "title", "name", LocalDateTime.now());
+
+        List<PostDto.Response> postList = new ArrayList<>();
+        postList.add(returnPost);
+
+        Page<PostDto.Response> returnPage = new PageImpl<>(postList);
+
+        doReturn(returnPage).when(postService)
+                .findAll(pageable);
+
+        //Then
         mockMvc.perform(get("/posts")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
@@ -128,6 +159,13 @@ class PostControllerTest {
 
     @Test
     void findBYId() throws Exception {
+        //Given
+        PostDto.Response returnPost = new PostDto.Response(1L, "title", "name", LocalDateTime.now());
+
+        doReturn(returnPost).when(postService)
+                .findById(1L);
+
+        //Then
         mockMvc.perform(get("/posts/{postId}", 1L)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
@@ -146,11 +184,18 @@ class PostControllerTest {
 
     @Test
     void update() throws Exception {
+        //Given
+        PostUpdateDto.Response updatedPost = new PostUpdateDto.Response(1L, LocalDateTime.now());
+
         String editTitle = "edit title";
         String editContent = "edit content";
 
         PostUpdateDto.Request postUpdateDto = new PostUpdateDto.Request(editTitle, editContent);
 
+        doReturn(updatedPost).when(postService)
+                .updatePost(1L, postUpdateDto);
+
+        //Then
         mockMvc.perform(MockMvcRequestBuilders.patch(("/posts/{postId}"), 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(postUpdateDto)))
