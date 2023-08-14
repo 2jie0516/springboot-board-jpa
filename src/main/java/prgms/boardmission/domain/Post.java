@@ -10,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
+import prgms.boardmission.post.exception.NotFoundMemberException;
 
 @Entity
 public class Post extends BaseEntity {
@@ -32,14 +33,38 @@ public class Post extends BaseEntity {
     }
 
     public Post(String title, String content, Member member) {
+        checkTitleLength(title);
+        checkContentLength(content);
+
+        boolean isMemberEmpty = member == null;
+
+        if (isMemberEmpty) {
+            throw new NotFoundMemberException();
+        }
+
         this.title = title;
         this.content = content;
         this.member = member;
     }
 
     public void updatePost(String editTitle, String editContent) {
+        checkTitleLength(editTitle);
+        checkContentLength(editContent);
+
         this.title = editTitle;
         this.content = editContent;
+    }
+
+    private static void checkTitleLength(String editTitle) {
+        if (editTitle.length() > 30) {
+            throw new IllegalArgumentException("타이틀은 30자를 넘을 수 없습니다.");
+        }
+    }
+
+    private static void checkContentLength(String editContent) {
+        if (editContent.length() > 100) {
+            throw new IllegalArgumentException("본문은 100자를 넘을 수 없습니다.");
+        }
     }
 
     public long getId() {
